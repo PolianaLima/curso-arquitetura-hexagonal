@@ -2,8 +2,8 @@ package application_test
 
 import (
 	"github.com/polianalima/go-hexagonal/application"
-
 	"github.com/stretchr/testify/require"
+
 	"github.com/satori/go.uuid"
 
 	"testing"
