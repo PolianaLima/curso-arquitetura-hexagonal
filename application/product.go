@@ -1,8 +1,17 @@
 package application
 
-import "errors"
+import (
+	"errors"
 
-type ProductInterface interface{
+	"github.com/asaskevich/govalidator"
+	uuid "github.com/satori/go.uuid"
+)
+
+func init() {
+	govalidator.SetFieldsRequiredByDefault(true)
+}
+
+type ProductInterface interface {
 	IsValid() (bool, error)
 	Enable() error
 	Disable() error
@@ -13,19 +22,69 @@ type ProductInterface interface{
 	GetPrice() float64
 }
 
+func NewProduct() *Product {
+	product := Product{
+		Id:   uuid.NewV4().String(),
+		Status: DISABLED,
+	}
+
+	return &product
+}
+
+type ProductServiceInterface interface {
+	Get(id string) (ProductInterface, error)
+	Create(name string, price float64) (ProductInterface, error)
+	Enable(product ProductInterface) (ProductInterface, error)
+	Disable(product ProductInterface) (ProductInterface, error)
+}
+
+type ProductReaderInterface interface {
+	Get(id string) (ProductInterface, error)
+}
+
+type ProductWriterInterface interface {
+	Save(product ProductInterface) (ProductInterface, error)
+}
+
+type ProductPersistenceInterface interface {
+	ProductReaderInterface
+	ProductWriterInterface
+}
+
+
 const (
 	DISABLED = "disabled"
-	ENABLED = "enabled"
+	ENABLED  = "enabled"
 )
 
 type Product struct {
-	Id string
-	Name string
-	Price float64
-	Status string
+	Id     string `valid:"uuidv4"`
+	Name   string `valid:"required"`
+	Price  float64 `valid:"float,optional"`
+	Status string  `valid:"required"`
 }
 
-//func (p *Product) IsValid() (bool, error) {}
+func (p *Product) IsValid() (bool, error) {
+	if p.Status == "" {
+		p.Status = DISABLED
+	}
+
+	if p.Status != ENABLED && p.Status != DISABLED {
+		return false, errors.New("The status must be enabled or disabled")
+	}
+	if p.Price < 0 {
+		return false, errors.New("The price must be greater or equal zero")
+	}
+
+	_, err := govalidator.ValidateStruct(p)
+	if err != nil {
+		return false, err
+	
+	}
+	
+	return true , nil
+}
+
 
 func (p *Product) Enable() error {
 	if p.Price > 0 {
@@ -35,7 +94,13 @@ func (p *Product) Enable() error {
 	return errors.New("The price must be greater than zero to enable the product")
 }
 
-//func (p *Product) Disable() error {}
+func (p *Product) Disable() error {
+	if p.Price == 0 {
+		p.Status = DISABLED
+		return nil
+	}
+	return errors.New("The price must be zero to disable the product")
+}
 
 func (p *Product) GetId() string {
 	return p.Id
